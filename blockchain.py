@@ -1,9 +1,9 @@
 import hashlib
 import json
 
-from textwrap import detent
 from time import time
 from uuid import uuid4
+from urllib.parse import urlparse
 
 from flask import Flask, jsonify, request
 
@@ -11,9 +11,14 @@ class BlockChain(object):
     def __init__(self):
         self.chain = []
         self.current_transactions = []
+        self.nodes = set()
 
         # Create the genesis block
         self.new_block(previous_hash=1, proof=100)
+
+    def register_node(self, address):
+        parsed_url = urlparse(address)
+        self.nodes.add(parsed_url.netloc)
 
     # Creates a new block and adds it to the chain
     def new_block(self, proof, previous_hash=None):
@@ -53,7 +58,9 @@ class BlockChain(object):
         block_string = json.dumps(block, sort_keys=True).encode()
         return hashlib.sha256(block_string).hexdigest()
 
+    @staticmethod
     def valid_proof(last_proof, proof):
+        
         guess = f'{last_proof}{proof}'.encode()
         guess_hash = hashlib.sha256(guess).hexdigest()
 
@@ -93,7 +100,7 @@ def mine():
     previous_hash = blockchain.hash(last_block)
     block = blockchain.new_block(proof, previous_hash)
 
-    respose = {
+    response = {
         'message':          "New Block Forged",
         'index':            block['index'],
         'transactions':     block['transactions'],
@@ -126,5 +133,26 @@ def full_chain():
     }
     return jsonify(response), 200
 
+# @app.route('/nodes/register', methods=['POST'])
+# def register_nodes():
+#     values = request.get_json()
+
+#     nodes = values.get('nodes')
+#     if nodes is None:
+#         return "Error: Please supply a vaild list of nodes", 400
+
+#     for node in nodes:
+#         blockchain.register_node(node)
+
+#     response = {
+#         'message':      "New nodes have been added",
+#         'total_nodes':  list(blockchain.nodes),
+#     }
+#     return jsonify(response), 201
+
+# @app.route('/nodes/resolve', methods=['GET'])
+# def consensus():
+#     replaced = blockchain.resolve_conflicts()
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='127.0.0.1', port=5000)
